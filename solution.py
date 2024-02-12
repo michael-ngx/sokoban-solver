@@ -10,7 +10,23 @@ import math  # for infinity
 from search import *  # for search engines
 from sokoban import sokoban_goal_state, SokobanState, Direction, PROBLEMS  # for Sokoban specific classes and problems
 
-# SOKOBAN HEURISTICS
+##################################################################
+######################## HELPER FUNCTIONS ########################
+##################################################################
+def cornered(state, box):
+    '''Checks if box is stuck in corner, but not at goal state'''
+
+    up_block = (box[1] == 0) or ((box[0], box[1] + 1) in state.obstacles) 
+    down_block = (box[1] == state.height - 1) or ((box[0], box[1] - 1) in state.obstacles) 
+
+    left_block = (box[0] == 0) or ((box[0] - 1, box[1]) in state.obstacles)
+    right_block = (box[0] == state.width - 1) or ((box[0] + 1, box[1]) in state.obstacles)
+
+    return (up_block or down_block) and (left_block or right_block) 
+
+####################################################################
+######################## SOKOBAN HEURISTICS ########################
+####################################################################
 def heur_alternate(state):
     # IMPLEMENT
     '''a better heuristic'''
@@ -20,7 +36,8 @@ def heur_alternate(state):
     # Write a heuristic function that improves upon heur_manhattan_distance to estimate distance between the current state and the goal.
     # Your function should return a numeric value for the estimate of the distance to the goal.
     # EXPLAIN YOUR HEURISTIC IN THE COMMENTS. Please leave this function (and your explanation) at the top of your solution file, to facilitate marking.
-    return 0  # CHANGE THIS
+    
+    return heur_manhattan_distance(state)  # CHANGE THIS
 
 def heur_zero(state):
     '''Zero Heuristic can be used to make A* search perform uniform cost search'''
@@ -37,7 +54,20 @@ def heur_manhattan_distance(state):
     # When calculating distances, assume there are no obstacles on the grid.
     # You should implement this heuristic function exactly, even if it is tempting to improve it.
     # Your function should return a numeric value; this is the estimate of the distance to the goal.
-    return 0  # CHANGE THIS
+    
+    result = 0
+    for box in state.boxes:
+        # Find the closest storage point for the box
+        min_distance = float('inf')
+        for storage in state.storage:
+            distance = abs(box[0] - storage[0]) + abs(box[1] - storage[1])
+            if distance < min_distance:
+                min_distance = distance
+        if min_distance == float('inf'):
+            return float('inf')
+        result += min_distance
+        
+    return result
 
 def fval_function(sN, weight):
     # IMPLEMENT
@@ -51,13 +81,18 @@ def fval_function(sN, weight):
     """
     return 0 #CHANGE THIS
 
-# SEARCH ALGORITHMS
+##################################################################
+###################### SEARCH ALGORITHMS #########################
+##################################################################
 def weighted_astar(initial_state, heur_fn, weight, timebound):
     # IMPLEMENT    
     '''Provides an implementation of weighted a-star, as described in the HW1 handout'''
     '''INPUT: a sokoban state that represents the start state and a timebound (number of seconds)'''
     '''OUTPUT: A goal state (if a goal is found), else False as well as a SearchStats object'''
     '''implementation of weighted astar algorithm'''
+    
+    
+    
     return None, None  # CHANGE THIS
 
 def iterative_astar(initial_state, heur_fn, weight=1, timebound=5):  # uses f(n), see how autograder initializes a search line 88
@@ -74,7 +109,22 @@ def iterative_gbfs(initial_state, heur_fn, timebound=5):  # only use h(n)
     '''INPUT: a sokoban state that represents the start state and a timebound (number of seconds)'''
     '''OUTPUT: A goal state (if a goal is found), else False'''
     '''implementation of iterative gbfs algorithm'''
-    return None, None #CHANGE THIS
+    endtime = os.times()[0] + timebound
+    se = SearchEngine('best_first', 'full')
+    se.init_search(initial_state, sokoban_goal_state, heur_fn)
+    
+    best_goal = False
+    best_stat = False
+    costbound = (float('inf'), float('inf'), float('inf'))
+    
+    while os.times()[0] < endtime:
+        goal, stat = se.search(timebound, costbound)
+        if goal and (goal.gval < costbound[0]):
+            costbound = (goal.gval, float('inf'), float('inf'))
+            best_goal = goal
+            best_stat = stat
+    
+    return best_goal, best_stat
 
 
 
