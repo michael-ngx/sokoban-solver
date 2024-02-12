@@ -69,6 +69,9 @@ def heur_manhattan_distance(state):
         
     return result
 
+##################################################################
+###################### SEARCH ALGORITHMS #########################
+##################################################################
 def fval_function(sN, weight):
     # IMPLEMENT
     """
@@ -79,21 +82,19 @@ def fval_function(sN, weight):
     @param float weight: Weight given by Anytime Weighted A star
     @rtype: float
     """
-    return 0 #CHANGE THIS
+    return sN.gval + weight * sN.hval
 
-##################################################################
-###################### SEARCH ALGORITHMS #########################
-##################################################################
 def weighted_astar(initial_state, heur_fn, weight, timebound):
     # IMPLEMENT    
     '''Provides an implementation of weighted a-star, as described in the HW1 handout'''
     '''INPUT: a sokoban state that represents the start state and a timebound (number of seconds)'''
     '''OUTPUT: A goal state (if a goal is found), else False as well as a SearchStats object'''
     '''implementation of weighted astar algorithm'''
-    
-    
-    
-    return None, None  # CHANGE THIS
+    wrapped_fval_function = (lambda sN: fval_function(sN, weight))
+    se = SearchEngine('custom', 'full')
+    se.init_search(initial_state, sokoban_goal_state, heur_fn, fval_function=wrapped_fval_function)
+    costbound = (float('inf'), float('inf'), float('inf'))
+    return se.search(timebound, costbound)
 
 def iterative_astar(initial_state, heur_fn, weight=1, timebound=5):  # uses f(n), see how autograder initializes a search line 88
     # IMPLEMENT
@@ -101,7 +102,26 @@ def iterative_astar(initial_state, heur_fn, weight=1, timebound=5):  # uses f(n)
     '''INPUT: a sokoban state that represents the start state and a timebound (number of seconds)'''
     '''OUTPUT: A goal state (if a goal is found), else False as well as a SearchStats object'''
     '''implementation of iterative astar algorithm'''
-    return None, None #CHANGE THIS
+    endtime = os.times()[0] + timebound
+    se = SearchEngine('custom', 'full')
+    
+    wrapped_fval_function = (lambda sN: fval_function(sN, weight))
+    se.init_search(initial_state, sokoban_goal_state, heur_fn, fval_function=wrapped_fval_function)
+    
+    best_goal = False
+    best_stat = False
+    costbound = (float('inf'), float('inf'), float('inf'))
+    
+    while os.times()[0] < endtime:
+        goal, stat = se.search(timebound, costbound)
+        if goal and (goal.gval < costbound[2]):
+            costbound = (float('inf'), float('inf'), goal.gval)
+            best_goal = goal
+            best_stat = stat
+        weight *= 0.8
+        se.fval_function = (lambda sN: fval_function(sN, weight))
+    
+    return best_goal, best_stat
 
 def iterative_gbfs(initial_state, heur_fn, timebound=5):  # only use h(n)
     # IMPLEMENT
@@ -125,6 +145,4 @@ def iterative_gbfs(initial_state, heur_fn, timebound=5):  # only use h(n)
             best_stat = stat
     
     return best_goal, best_stat
-
-
 
