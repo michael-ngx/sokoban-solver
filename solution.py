@@ -13,15 +13,69 @@ from sokoban import sokoban_goal_state, SokobanState, Direction, PROBLEMS  # for
 ##################################################################
 ######################## HELPER FUNCTIONS ########################
 ##################################################################
-def cornered(state, box):
-    '''Checks if box is stuck in corner, but not at goal state'''
+def invalid(coord, state):
+    '''Checks if coordinate is invalid'''
+    return (coord[0] < 0) or (coord[0] >= state.width) or (coord[1] < 0) or (coord[1] >= state.height) or (coord in state.obstacles)
+def cornered_or_consecutive_boxes(state, box):
+    '''Checks if there are 2 consecutive boxes in the same row or column, and they are adjacent to invalid coordinates'''
+    x = box[0]
+    y = box[1]
+    up = (x, y - 1)
+    down = (x, y + 1)
+    left = (x - 1, y)
+    right = (x + 1, y)
+    up_left = (x - 1, y - 1)
+    up_right = (x + 1, y - 1)
+    down_left = (x - 1, y + 1)
+    down_right = (x + 1, y + 1)
+    
+    if (right in state.boxes):
+        if (invalid(up, state) and invalid(up_right, state)) or (invalid(down, state) and invalid(down_right, state)):
+            return True
+    if (left in state.boxes):
+        if (invalid(up, state) and invalid(up_left, state)) or (invalid(down, state) and invalid(down_left, state)):
+            return True
+    if (up in state.boxes):
+        if (invalid(left, state) and invalid(up_left, state)) or (invalid(right, state) and invalid(up_right, state)):
+            return True
+    if (down in state.boxes):
+        if (invalid(left, state) and invalid(down_left, state)) or (invalid(right, state) and invalid(down_right, state)):
+            return True
+        
+    if (invalid(up, state) or invalid(down, state)) and (invalid(left, state) or invalid(right, state)):
+        return True
+    
+    return False
 
-    up_blocked = (box[1] == 0) or ((box[0], box[1] + 1) in state.obstacles)
-    down_blocked = (box[1] == state.height - 1) or ((box[0], box[1] - 1) in state.obstacles) 
-    left_blocked = (box[0] == 0) or ((box[0] - 1, box[1]) in state.obstacles)
-    right_blocked = (box[0] == state.width - 1) or ((box[0] + 1, box[1]) in state.obstacles)
+def wall_stuck(state):
+    # Left and right walls
+    box_count = [0, 0, 0, 0]
+    storage_count = [0, 0, 0, 0]
+    for i in range(state.height):
+        if (0, i) in state.boxes:
+            box_count[0] += 1
+        if (0, i) in state.storage:
+            storage_count[0] += 1
+        if (state.width - 1, i) in state.boxes:
+            box_count[1] += 1
+        if (state.width - 1, i) in state.storage:
+            storage_count[1] += 1
+    
+    # Top and bottom walls
+    for i in range(state.width):
+        if (i, 0) in state.boxes:
+            box_count[2] += 1
+        if (i, 0) in state.storage:
+            storage_count[2] += 1
+        if (i, state.height - 1) in state.boxes:
+            box_count[3] += 1
+        if (i, state.height - 1) in state.storage:
+            storage_count[3] += 1
+            
+    for i in range(4):
+        if box_count[i] > storage_count[i]:
+            return True
 
-    return (up_blocked or down_blocked) and (left_blocked or right_blocked) 
 
 ####################################################################
 ######################## SOKOBAN HEURISTICS ########################
@@ -36,13 +90,17 @@ def heur_alternate(state):
     # Your function should return a numeric value for the estimate of the distance to the goal.
     # EXPLAIN YOUR HEURISTIC IN THE COMMENTS. Please leave this function (and your explanation) at the top of your solution file, to facilitate marking.
     
+    # For the 4 walls, confirm that number of boxes is less than or equal to number of storage points
+    if wall_stuck(state):
+        return float('inf')
+    
     result = 0
     for box in state.boxes:
         if box in state.storage:
             continue
         
         # Check if box is stuck in corner
-        if cornered(state, box):
+        if cornered_or_consecutive_boxes(state, box):
             return float('inf')
 
         # Find the closest storage point for the box
@@ -142,8 +200,8 @@ def iterative_astar(initial_state, heur_fn, weight=1, timebound=5):  # uses f(n)
             costbound = (float('inf'), float('inf'), goal.gval)
             best_goal = goal
             best_stat = stat
+            
         weight *= 0.8
-        se.fval_function = (lambda sN: fval_function(sN, weight))
     
     return best_goal, best_stat
 
