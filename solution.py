@@ -13,11 +13,15 @@ from sokoban import sokoban_goal_state, SokobanState, Direction, PROBLEMS  # for
 ##################################################################
 ######################## HELPER FUNCTIONS ########################
 ##################################################################
+PENALTY = 10
 def invalid(coord, state):
     '''Checks if coordinate is invalid'''
     return (coord[0] < 0) or (coord[0] >= state.width) or (coord[1] < 0) or (coord[1] >= state.height) or (coord in state.obstacles)
 def cornered_or_consecutive_boxes(state, box):
-    '''Checks if there are 2 consecutive boxes in the same row or column, and they are adjacent to invalid coordinates'''
+    '''Checks if there are 2 consecutive boxes in the same row or column, and they are adjacent to invalid coordinates
+    Also checks if a box is stuck in a corner
+    '''
+    global PENALTY
     x = box[0]
     y = box[1]
     up = (x, y - 1)
@@ -31,21 +35,26 @@ def cornered_or_consecutive_boxes(state, box):
     
     if (right in state.boxes):
         if (invalid(up, state) and invalid(up_right, state)) or (invalid(down, state) and invalid(down_right, state)):
-            return True
+            return -1
     if (left in state.boxes):
         if (invalid(up, state) and invalid(up_left, state)) or (invalid(down, state) and invalid(down_left, state)):
-            return True
+            return -1
     if (up in state.boxes):
         if (invalid(left, state) and invalid(up_left, state)) or (invalid(right, state) and invalid(up_right, state)):
-            return True
+            return -1
     if (down in state.boxes):
         if (invalid(left, state) and invalid(down_left, state)) or (invalid(right, state) and invalid(down_right, state)):
-            return True
-        
-    if (invalid(up, state) or invalid(down, state)) and (invalid(left, state) or invalid(right, state)):
-        return True
+            return -1
     
-    return False
+    # Checking corner
+    if (invalid(up, state) or invalid(down, state)) and (invalid(left, state) or invalid(right, state)):
+        return -1
+    
+    # Penalty for moving boxes closer to each other
+    if (up in state.boxes or down in state.boxes) and (left in state.boxes or right in state.boxes):
+        return PENALTY
+    
+    return 0
 
 def wall_stuck(state):
     # Left and right walls
@@ -76,10 +85,13 @@ def wall_stuck(state):
         if box_count[i] > storage_count[i]:
             return True
 
+    return False
 
 ####################################################################
 ######################## SOKOBAN HEURISTICS ########################
 ####################################################################
+prev_manhattan = 0
+
 def heur_alternate(state):
     # IMPLEMENT
     '''a better heuristic'''
@@ -90,28 +102,53 @@ def heur_alternate(state):
     # Your function should return a numeric value for the estimate of the distance to the goal.
     # EXPLAIN YOUR HEURISTIC IN THE COMMENTS. Please leave this function (and your explanation) at the top of your solution file, to facilitate marking.
     
+    global prev_manhattan
+    
     # For the 4 walls, confirm that number of boxes is less than or equal to number of storage points
     if wall_stuck(state):
+        prev_manhattan = float('inf')
         return float('inf')
     
     result = 0
+    # Distance from box to storage heuristic
+    if (state.parent is not None) and (state.boxes == state.parent.boxes):
+        if prev_manhattan == float('inf'):
+            return float('inf')
+        result = prev_manhattan
+        
+        # Adding distance from robot to box heuristic
+        for box in state.boxes:
+            if box in state.storage:
+                continue
+            min_distance = float('inf')
+            for robot in state.robots:
+                distance = abs(box[0] - robot[0]) + abs(box[1] - robot[1])
+                if distance < min_distance:
+                    min_distance = distance
+            result += min_distance
+        return result
+    
+    prev_manhattan = 0
     for box in state.boxes:
         if box in state.storage:
             continue
         
-        # Check if box is stuck in corner
-        if cornered_or_consecutive_boxes(state, box):
+        # Check if box is stuck in corner or if there are 2 consecutive boxes in the same row or column
+        check = cornered_or_consecutive_boxes(state, box)
+        
+        if check == -1:
+            prev_manhattan = float('inf')
             return float('inf')
-
-        # Find the closest storage point for the box
+        result += check
+        
         min_distance = float('inf')
         for storage in state.storage:
             distance = abs(box[0] - storage[0]) + abs(box[1] - storage[1])
             if distance < min_distance:
                 min_distance = distance
         result += min_distance
-        
-        # Find the closest robot to the box
+        prev_manhattan += min_distance
+    
         min_distance = float('inf')
         for robot in state.robots:
             distance = abs(box[0] - robot[0]) + abs(box[1] - robot[1])
@@ -196,8 +233,8 @@ def iterative_astar(initial_state, heur_fn, weight=1, timebound=5):  # uses f(n)
     
     while (endtime - os.times()[0]) > 0:
         goal, stat = se.search((endtime - os.times()[0]), costbound)
-        if goal and (goal.gval < costbound[2]):
-            costbound = (float('inf'), float('inf'), goal.gval)
+        if goal and (goal.gval + (weight*heur_fn(goal)) < costbound[2]):
+            costbound = (float('inf'), float('inf'), goal.gval + (weight*heur_fn(goal)))
             best_goal = goal
             best_stat = stat
             
