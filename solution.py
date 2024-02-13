@@ -136,16 +136,14 @@ def iterative_astar(initial_state, heur_fn, weight=1, timebound=5):  # uses f(n)
     best_stat = False
     costbound = (float('inf'), float('inf'), float('inf'))
     
-    timeleft = endtime - os.times()[0]
-    while timeleft > 0:
-        goal, stat = se.search(timeleft, costbound)
+    while (endtime - os.times()[0]) > 0:
+        goal, stat = se.search((endtime - os.times()[0]), costbound)
         if goal and (goal.gval < costbound[2]):
             costbound = (float('inf'), float('inf'), goal.gval)
             best_goal = goal
             best_stat = stat
         weight *= 0.8
         se.fval_function = (lambda sN: fval_function(sN, weight))
-        timeleft = endtime - os.times()[0]
     
     return best_goal, best_stat
 
@@ -163,14 +161,12 @@ def iterative_gbfs(initial_state, heur_fn, timebound=5):  # only use h(n)
     best_stat = False
     costbound = (float('inf'), float('inf'), float('inf'))
     
-    timeleft = endtime - os.times()[0]
-    while timeleft > 0:
-        goal, stat = se.search(timeleft, costbound)
+    while (endtime - os.times()[0]) > 0:
+        goal, stat = se.search((endtime - os.times()[0]), costbound)
         if goal and (goal.gval < costbound[0]):
             costbound = (goal.gval, float('inf'), float('inf'))
             best_goal = goal
             best_stat = stat
-        timeleft = endtime - os.times()[0]
     
     return best_goal, best_stat
 
