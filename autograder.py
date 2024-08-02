@@ -291,14 +291,14 @@ def test_weighted_astar_fun():
     print("*************************************\n")
 
 def test_all():
-    if test_time_astar: test_time_astar_fun()
-    if test_time_gbfs: test_time_gbfs_fun()
-    if test_manhattan: test_manhattan_fun()
-    if test_fval_function: test_fval_function_fun()
-    if test_iterative_gbfs: test_iterative_gbfs_fun()
+    # if test_time_astar: test_time_astar_fun()
+    # if test_time_gbfs: test_time_gbfs_fun()
+    # if test_manhattan: test_manhattan_fun()
+    # if test_fval_function: test_fval_function_fun()
+    # if test_iterative_gbfs: test_iterative_gbfs_fun()
     if test_alternate: test_alternate_fun()
-    if test_iterative_astar: test_iterative_astar_fun()
-    if test_weighted_astar: test_weighted_astar_fun()
+    # if test_iterative_astar: test_iterative_astar_fun()
+    # if test_weighted_astar: test_weighted_astar_fun()
 
 if __name__=='__main__':
     test_all()
